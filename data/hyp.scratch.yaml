@@ -1,0 +1,4 @@
+# Detector metadata expected by the YOLOv3 checkpoint loader.
+box: 0.05
+cls: 0.5
+obj: 1.0
