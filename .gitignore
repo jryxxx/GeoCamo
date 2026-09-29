@@ -5,6 +5,14 @@ __pycache__/
 .vscode/
 .venv/
 env/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+datasets/
+dataset/
 results/
 runs/
 outputs/
@@ -13,6 +21,10 @@ checkpoints/
 *.pth
 *.ckpt
 *.npz
+*.txt
+*.csv
+*.parquet
+*.jsonl
 *.obj
 *.mtl
 *.png
@@ -25,3 +37,6 @@ checkpoints/
 *.zip
 *.tar
 *.tar.gz
+training_params.json
+loss_history.json
+epoch_losses.json
