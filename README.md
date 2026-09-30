@@ -1,10 +1,16 @@
 # GeoCamo
 
-Training code for the geometry guided vehicle camouflage model. This repository contains the surface field, differentiable rendering and training loss, together with the detector modules needed to load a pretrained YOLOv3 checkpoint. It contains no evaluation or test scripts, pretrained weights, meshes, or datasets.
+Code for the paper **GeoCamo: Geometry-Conditioned Texture Fields for Transferable Adversarial Camouflage Against Vehicle Detectors**.
 
-## Environment
+## Abstract
 
-The recorded training stack used Python 3.10.8, PyTorch 2.1.2 with CUDA 11.8, torchvision 0.16.2, PyTorch3D 0.7.9, and nvdiffrast 0.4.0. Other Python dependencies and their versions are in `environment.yml` and `requirements.txt`. A CUDA capable GPU and a matching CUDA toolkit (`nvcc`) are needed to build the rendering dependencies.
+Adversarial camouflage can suppress vehicle detection across viewpoints, but existing textures are often tied to the mesh or projection used for optimization. We propose GeoCamo, a geometry-conditioned texture field for cross-vehicle transfer. Its position and geometry hash branches combine body-relative and local-shape cues, while a functional consistency loss aligns blending and palette decisions across vehicles. The field is optimized on multiple source meshes through differentiable rendering against a fixed detector, with a region-level palette constraint to retain color diversity. A voxel query-and-broadcast operation produces coherent camouflage regions instead of independently colored surface samples. The same frozen field is evaluated on held-out and image-reconstructed meshes without shared texture coordinates, vertex correspondence, or target-specific optimization. On held-out vehicle meshes, it yields lower mean average precision for vehicle detection than the texture-projection baselines. Evaluations across camera configurations and detector architectures further test its transfer beyond the training setup. Tests on reconstructed vehicles and photographed miniature models examine changes in surface representation and image capture. Surface-wise blending and cross-vehicle output analyses show how related body regions receive compatible texture decisions. The results support geometry-conditioned texture generation as a means of transferring adversarial camouflage while maintaining detector suppression. Code is available at https://github.com/jryxxx/GeoCamo.
+
+## Usage
+
+### Environment
+
+The reference environment uses Python 3.10.8, PyTorch 2.1.2 with CUDA 11.8, torchvision 0.16.2, PyTorch3D 0.7.9, and nvdiffrast 0.4.0. Other package versions are pinned in `environment.yml`. A CUDA-capable GPU and a matching CUDA toolkit (`nvcc`) are needed to build the rendering dependencies.
 
 ```bash
 conda env create -f environment.yml
@@ -13,25 +19,26 @@ python -m pip install 'git+https://github.com/facebookresearch/pytorch3d.git@v0.
 python -m pip install 'git+https://github.com/NVlabs/nvdiffrast.git@v0.4.0'
 ```
 
-The recorded machine had an NVIDIA RTX 4080 SUPER. The exact OpenCV build recorded there was 4.13.0.92; the environment file selects 4.8.0.76 because it is compatible with the recorded NumPy 1.26.4 and the APIs used here.
+The included YOLOv3 detector modules are adapted from [Ultralytics YOLOv3](https://github.com/ultralytics/yolov3).
 
-## Required inputs
+### Inputs
 
-* A pretrained YOLOv3 checkpoint readable by `torch.load`, with a `model` entry whose YAML describes the detector. No checkpoint is distributed here.
-* One or more vehicle OBJ meshes, with any referenced MTL and texture files. Pass meshes in the same order as their optional face lists.
-* A directory of training `.npz` files. Each file contains `img` (a rendered background image) and `cam_trans` (camera transform used by the renderer). By default `img` is interpreted as BGR; set `--npz-color-order rgb` for RGB files.
-* Optional YOLO-format `.txt` labels and `.png` vehicle masks with stems matching the NPZ files. If omitted, training derives a vehicle box and mask from its rendered mesh.
-* Optional face-list text files containing OBJ face-line indices for the paintable vehicle surfaces. If omitted, the whole mesh is optimized.
+- A pretrained YOLOv3 checkpoint readable by `torch.load`, with a `model` entry containing the detector configuration.
+- Vehicle OBJ meshes with any referenced MTL and texture files, aligned to a consistent canonical orientation.
+- A directory of `.npz` files, each containing `img` (background image) and `cam_trans` (camera transform). Images are interpreted as BGR by default; set `--npz-color-order rgb` for RGB files.
+- Optionally, one paintable-face list per mesh, in the same order as `--obj-file`. Without `--faces`, every mesh face is optimized. Matching YOLO-format labels and vehicle-mask images may also be supplied with `--label-dir` and `--mask-dir`.
 
-## Train
+### Run
+
+The paper's main configuration uses five source vehicles. Replace the example paths with your detector checkpoint, input files, and paintable-face lists:
 
 ```bash
 python train.py \
   --weights /path/to/yolov3.pt \
   --data data/train.yaml \
-  --npz-dir /path/to/training/npz \
-  --obj-file /path/to/car_1.obj /path/to/car_2.obj \
-  --faces /path/to/car_1_faces.txt /path/to/car_2_faces.txt \
+  --npz-dir /path/to/background_npz \
+  --obj-file /path/to/compact.obj /path/to/etron.obj /path/to/minivan.obj /path/to/pickup.obj /path/to/suv.obj \
+  --faces /path/to/compact_faces.txt /path/to/etron_faces.txt /path/to/minivan_faces.txt /path/to/pickup_faces.txt /path/to/suv_faces.txt \
   --epochs 5 \
   --block-resolution 144 \
   --subcolor-temp 0.45 \
@@ -41,10 +48,4 @@ python train.py \
   --output-dir results/geocamo
 ```
 
-For one vehicle, provide one OBJ and one face list. `--faces` may be omitted to optimize every mesh face. `--label-dir` and `--mask-dir` may be supplied when the corresponding training annotations are available. `python train.py --help` lists all options.
-
-Training writes epoch and final checkpoints, configuration metadata, loss history, and preview images beneath `--output-dir`. Checkpoint selection by validation is outside this training-only release; the final checkpoint is the result of the complete configured training run.
-
-## Code provenance
-
-The `models/` and `utils/` modules contain the YOLOv3 detector definitions and supporting code needed to load the detector checkpoint, adapted from the [Ultralytics YOLOv3 project](https://github.com/ultralytics/yolov3). The `atf/` package and `train.py` contain the GeoCamo training implementation.
+The command writes checkpoints, configuration metadata, loss history, and preview images to `--output-dir`. Run `python train.py --help` for the full set of options.
